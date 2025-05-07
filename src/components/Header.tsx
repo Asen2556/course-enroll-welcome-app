@@ -3,23 +3,35 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { auth } from "@/config/firebase";
+import { logoutUser } from "@/services/authService";
 
 const Header = () => {
   const [username, setUsername] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = localStorage.getItem("currentUser");
-    setUsername(user);
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUsername(user.email || "User");
+      } else {
+        setUsername(null);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const handleLogout = () => {
-    // In a real app, you'd also invalidate the token on the server
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("selectedCourse");
-    localStorage.removeItem("enrolledUser");
-    toast.success("Logged out successfully");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      localStorage.removeItem("selectedCourse");
+      localStorage.removeItem("enrolledUser");
+      toast.success("Logged out successfully");
+      navigate("/login");
+    } catch (error: any) {
+      toast.error(error.message || "Logout failed");
+    }
   };
 
   return (

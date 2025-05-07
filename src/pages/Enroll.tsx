@@ -1,10 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getCourses, enrollInCourse, Course } from "@/services/courseService";
+import { getCourses, Course } from "@/services/courseService";
+import { addEnrollment } from "@/services/dbService";
+import { auth } from "@/config/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -37,12 +38,15 @@ const Enroll = () => {
   });
 
   useEffect(() => {
-    const username = localStorage.getItem("currentUser");
-    if (!username) {
-      toast.error("Please login first");
-      navigate("/login");
-      return;
-    }
+    const checkAuth = () => {
+      if (!auth.currentUser) {
+        toast.error("Please login first");
+        navigate("/login");
+        return;
+      }
+    };
+
+    checkAuth();
 
     const selectedCourseId = localStorage.getItem("selectedCourseId");
     
@@ -66,22 +70,34 @@ const Enroll = () => {
   }, [navigate, form]);
 
   const onSubmit = async (data: FormValues) => {
+    if (!auth.currentUser) {
+      toast.error("You must be logged in to enroll");
+      navigate("/login");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const result = await enrollInCourse({
+      // Add enrollment to Firestore
+      await addEnrollment({
         fullName: data.fullName,
         email: data.email,
         courseId: parseInt(data.courseId),
+        userId: auth.currentUser.uid
       });
 
-      if (result.success) {
-        toast.success("Enrollment successful!");
-        navigate("/welcome");
-      } else {
-        toast.error("Enrollment failed. Please try again.");
+      // Store selected course for welcome page
+      const selectedCourse = courses.find(c => c.id === parseInt(data.courseId));
+      if (selectedCourse) {
+        localStorage.setItem("selectedCourse", JSON.stringify(selectedCourse));
+        localStorage.setItem("enrolledUser", data.fullName);
       }
-    } catch (error) {
-      toast.error("An error occurred. Please try again.");
+
+      toast.success("Enrollment successful!");
+      navigate("/welcome");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Enrollment failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { loginUser } from "@/services/authService";
 
 const Login = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,24 +17,21 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username || !password) {
-      toast.error("Please enter both username and password");
+    if (!email || !password) {
+      toast.error("Please enter both email and password");
       return;
     }
     
     setIsLoading(true);
     
-    // Simulate API call
     try {
-      // In a real app, this would be an actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store user in localStorage (in a real app, you'd store a token)
-      localStorage.setItem("currentUser", username);
+      const userCredential = await loginUser(email, password);
+      localStorage.setItem("currentUser", userCredential.user.email || "User");
       toast.success("Login successful!");
       navigate("/courses");
-    } catch (error) {
-      toast.error("Login failed. Please try again.");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -51,12 +49,13 @@ const Login = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input 
-                id="username"
-                placeholder="johndoe" 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="john.doe@example.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -82,7 +81,7 @@ const Login = () => {
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-500">
-            Demo credentials: any username and password
+            Demo credentials: test@example.com / password123
           </p>
         </CardFooter>
       </Card>
